@@ -1,0 +1,14 @@
+﻿{
+    "name": "M2Mqtt",
+    "rootNamespace": "uPLibrary.Networking.M2Mqtt",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

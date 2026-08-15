@@ -1,0 +1,21 @@
+﻿{
+  "name": "com.unitysense.framework",
+  "version": "1.0.0",
+  "displayName": "UnitySense Framework",
+  "description": "Unity IoT Sensor Bridge Framework - A reusable framework for connecting ESP32, Arduino, and other IoT devices to Unity via MQTT.",
+  "unity": "2021.3",
+  "keywords": ["iot", "mqtt", "sensor", "esp32", "arduino", "digital-twin"],
+  "author": {
+    "name": "UnitySense Bridge"
+  },
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.2"
+  },
+  "samples": [
+    {
+      "displayName": "SmartCare Demo",
+      "description": "Smart nursing home environment monitoring demo using UnitySense Framework.",
+      "path": "Samples~/SmartCareDemo"
+    }
+  ]
+}

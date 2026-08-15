@@ -1,0 +1,17 @@
+﻿{
+    "name": "UnitySenseFramework.Runtime",
+    "rootNamespace": "UnitySenseFramework",
+    "references": [
+        "M2Mqtt",
+        "Newtonsoft.Json"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
