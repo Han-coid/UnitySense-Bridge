@@ -51,6 +51,16 @@ dm.Disconnect();    // 断开连接
 | `offlineTimeout` | `10f` | 离线超时（秒） |
 | `autoRegisterDevices` | `true` | 自动注册新设备 |
 
+### 替换 MQTT 实现
+
+框架通过静态工厂创建 `IMqttClient`，默认使用 `M2MqttAdapter`：
+
+```csharp
+DeviceManager.MqttFactory = () => new MyMqttAdapter();
+```
+
+应在 `DeviceManager.Connect()` 之前设置。
+
 ### 设备管理
 
 ```csharp
@@ -79,6 +89,8 @@ dm.Publish("device/cmd", "{\"action\":\"restart\"}");
 ```
 
 ### 事件
+
+以下示例默认已引入 `UnitySenseFramework.Data` 和 `UnitySenseFramework.Device` 命名空间。
 
 ```csharp
 // 传感器数据更新（Unity 主线程，可安全操作 UI）
@@ -146,7 +158,7 @@ bool hasCO2 = msg.HasSensor("co2");
 
 框架兼容三种 JSON 格式：
 
-**格式 A**：ESP32 当前固件格式
+**格式 A**：ESP32 常见格式
 ```json
 { "device": "ESP32-001", "sensor": { "temperature": 24, "humidity": 57 } }
 ```
@@ -196,9 +208,9 @@ public class MyMqttAdapter : IMqttClient
 
     public void Connect(MqttConfig config) { ... }
     public void Disconnect() { ... }
-    public void Subscribe(string topic, byte qos = 0) { ... }
+    public void Subscribe(string topic, byte qosLevel = 0) { ... }
     public void Unsubscribe(string topic) { ... }
-    public void Publish(string topic, byte[] payload, byte qos = 0, bool retain = false) { ... }
+    public void Publish(string topic, byte[] payload, byte qosLevel = 0, bool retain = false) { ... }
 }
 ```
 
@@ -237,42 +249,17 @@ string json = JsonSensorParser.ToJson(message);
 
 ## SensorEventBus
 
-底层线程安全事件总线。通常不需要直接使用，由 DeviceManager 内部管理。
-
----
-
-## SmartCare Demo API
-
-### SmartCareManager
+底层线程安全事件总线。通常不需要直接使用，由 `DeviceManager` 内部管理。
 
 ```csharp
-var scm = FindObjectOfType<SmartCareManager>();
+SensorEventBus bus = SensorEventBus.Instance;
 
-// 事件
-scm.OnStatsUpdated += (OverviewStats stats) => { };
-scm.OnZoneUpdated += (ZoneInfo zone) => { };
-scm.OnZonesReady += () => { };
+// MQTT 线程安全入队
+bus.Enqueue(message);
 
-// 数据查询
-List<ZoneInfo> zones = scm.GetAllZones();
-ZoneInfo zone = scm.GetZone("ESP32-S3-001");
-List<FloorInfo> floors = scm.Floors;
-```
+// 主线程事件
+bus.OnSensorDataUpdated += (SensorMessage msg) => { };
 
-### AlertManager
-
-```csharp
-var am = FindObjectOfType<AlertManager>();
-
-// 自定义阈值（Inspector 可调）
-am.tempHighWarning = 28f;  // °C
-am.tempHighAlert = 32f;
-
-// 事件
-am.OnNewAlert += (AlertRecord record) => { };
-am.OnAlertResolved += (AlertRecord record) => { };
-
-// 数据
-List<AlertRecord> active = am.ActiveAlerts;
-List<AlertRecord> history = am.AlertHistory;
+// 当前队列待处理数量
+int pending = bus.PendingCount;
 ```

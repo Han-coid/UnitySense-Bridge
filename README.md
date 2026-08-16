@@ -9,7 +9,7 @@
 ## 特性
 
 - ✅ **即插即用**：导入 Package，配置 MQTT 地址，注册事件即可接收数据
-- ✅ **多设备支持**：同时管理数百个 IoT 设备，自动发现与注册
+- ✅ **多设备支持**：同时管理多个 IoT 设备，自动发现与注册
 - ✅ **可扩展数据模型**：使用 `Dictionary<string, float>` 存储传感器数据，新增传感器类型无需改代码
 - ✅ **线程安全**：MQTT 后台线程 → 消息队列 → Unity 主线程，自动处理线程切换
 - ✅ **事件驱动**：通信层与 UI 层完全解耦
@@ -22,7 +22,7 @@
 
 ### 1. 安装
 
-将 `Assets/UnitySenseFramework/` 目录复制到你的 Unity 项目中。
+本项目是一个 Unity Package。推荐将整个仓库目录（包含 `package.json`、`Runtime/`、`M2Mqtt/`）复制到 Unity 项目的 `Packages/com.unitysense.framework/` 下，或使用 Package Manager 的 “Add package from disk” 选择本目录。
 
 ### 2. 配置连接
 
@@ -43,7 +43,9 @@ dm.Connect();
 ### 3. 接收传感器数据
 
 ```csharp
+using UnitySenseFramework.Data;
 using UnitySenseFramework.Device;
+using UnityEngine;
 
 void Start()
 {
@@ -72,7 +74,7 @@ DeviceManager.Instance.Publish("device/ESP32-001/cmd", "{\"action\":\"restart\"}
 
 ```
 ┌──────────────────────────────────────────┐
-│           业务应用层（SmartCare Demo）      │
+│           业务应用层（你的 Unity 项目）     │
 │          UI / 告警 / 业务逻辑              │
 ├──────────────────────────────────────────┤
 │          UnitySense Framework             │
@@ -84,7 +86,7 @@ DeviceManager.Instance.Publish("device/ESP32-001/cmd", "{\"action\":\"restart\"}
 ├──────────────────────────────────────────┤
 │  M2MqttAdapter  │  (可替换为其他实现)      │
 ├──────────────────────────────────────────┤
-│         M2Mqtt.dll (第三方)               │
+│   M2Mqtt 源码程序集（随包提供）           │
 └──────────────────────────────────────────┘
 ```
 
@@ -124,35 +126,27 @@ DeviceManager.Instance.Publish("device/ESP32-001/cmd", "{\"action\":\"restart\"}
 
 ## ESP32 端固件
 
-参见 `ESP32-S3 Dev Module/ESP01/` 目录。固件支持：
-
-- AHT20 温湿度传感器
-- BH1750/GY302 光照传感器
-- 通过 MQTT 发布 JSON 数据到指定主题
+本包不包含 ESP32 固件。设备端只需通过 MQTT 向 `subscribeTopic` 发布受支持的 JSON 数据即可，JSON 格式见 [API_REFERENCE.md](Documentation/API_REFERENCE.md) 中 `SensorMessage` 的说明。
 
 ---
 
 ## 目录结构
 
 ```
-Assets/
-├── UnitySenseFramework/          ← 框架本体（可独立复制）
-│   ├── Runtime/
-│   │   ├── Communication/        MQTT 接口 + 适配器 + 配置
-│   │   ├── Data/                 SensorMessage + DeviceInfo
-│   │   ├── Device/               DeviceManager（核心）
-│   │   ├── Event/                SensorEventBus
-│   │   └── Parser/               JsonSensorParser
-│   └── package.json
-│
-├── Examples/
-│   └── SmartCareDemo/            ← 养老院环境监测 Demo
-│       ├── Scripts/
-│       │   ├── Data/             ZoneInfo 业务模型
-│       │   ├── Manager/          SmartCareManager + AlertManager
-│       │   ├── UI/               大屏 UI 组件
-│       │   └── Editor/           一键搭建工具
-│       └── Scenes/
+com.unitysense.framework/
+├── README.md
+├── package.json
+├── Runtime/
+│   ├── UnitySenseFramework.Runtime.asmdef
+│   ├── Communication/        MQTT 接口 + 适配器 + 配置
+│   ├── Data/                 SensorMessage + DeviceInfo
+│   ├── Device/               DeviceManager（核心）
+│   ├── Event/                SensorEventBus
+│   └── Parser/               JsonSensorParser
+├── M2Mqtt/                   M2Mqtt 源码程序集
+└── Documentation/
+    ├── API_REFERENCE.md
+    └── ARCHITECTURE.md
 ```
 
 ---
@@ -198,5 +192,4 @@ Assets/
 
 ## 许可
 
-MIT License
-
+本包未在根目录提供 `LICENSE` 文件；随包的 M2Mqtt 第三方库许可见 `M2Mqtt/M2Mqtt_LICENSE.txt`。

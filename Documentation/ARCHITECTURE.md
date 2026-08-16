@@ -8,7 +8,7 @@ UnitySense Framework 遵循以下设计原则：
 2. **事件驱动**：数据流动通过事件传递，模块间零耦合
 3. **线程安全**：后台线程数据通过队列传递到 Unity 主线程
 4. **可扩展性**：传感器类型、MQTT 实现、业务规则均可扩展
-5. **可复用性**：Framework 目录可独立复制到任何 Unity 项目
+5. **可复用性**：Package 目录可独立复制到任何 Unity 项目
 
 ---
 
@@ -19,9 +19,8 @@ UnitySense Framework 遵循以下设计原则：
 │                   Application Layer                   │
 │                                                      │
 │   ┌─────────────────────────────────────┐            │
-│   │        SmartCare Demo               │            │
-│   │  SmartCareManager / AlertManager    │            │
-│   │  UI (OverviewPanel / ZoneCard / ..) │            │
+│   │       你的 Unity 业务层              │            │
+│   │  UI / 告警 / 业务逻辑                │            │
 │   └──────────────┬──────────────────────┘            │
 │                  │ 事件订阅                            │
 │                  ▼                                    │
@@ -46,10 +45,10 @@ UnitySense Framework 遵循以下设计原则：
 │   └──────┬───────┘  └──────────────┘                 │
 │          │                                            │
 ├──────────┴──────────────────────────────────────────┤
-│              Third-Party Library                      │
+│           随包源码程序集 / 可选第三方库                 │
 │                                                      │
 │   ┌──────────────┐  ┌──────────────┐                 │
-│   │  M2Mqtt.dll  │  │  MQTTnet.dll │ (可选)          │
+│   │ M2Mqtt.asmdef│  │ MQTTnet.dll │ (可选/未来)      │
 │   └──────────────┘  └──────────────┘                 │
 └──────────────────────────────────────────────────────┘
 ```
@@ -84,25 +83,24 @@ ESP32/Arduino
        ▼
 ┌──────────────────────┐
 │ ConcurrentQueue       │  ← 线程安全队列
+│ SensorEventBus       │
 │ _messageQueue        │
 └──────┬───────────────┘
        │
        ▼ (Unity Main Thread - Update)
-┌──────────────┐
-│ DeviceManager │  ← 主线程出队
-│ Update()     │
-└──────┬───────┘
+┌──────────────────────┐
+│ SensorEventBus       │  ← 主线程出队
+│ Update()             │
+│ OnSensorDataUpdated  │
+└──────┬───────────────┘
        │
-       ├──► UpdateDeviceData() ──► DeviceInfo 缓存
+       ├──► DeviceManager.OnSensorDataForTracking() ──► DeviceInfo 缓存
        │
-       └──► OnSensorDataUpdated 事件
+       └──► DeviceManager.OnSensorDataUpdated 事件
                 │
                 ▼
        ┌───────────────┐
        │ 业务层 / UI    │  ← 订阅者
-       │ SmartCareManager
-       │ OverviewPanel
-       │ ZoneCardItem
        └───────────────┘
 ```
 
@@ -134,8 +132,13 @@ ESP32 (client.loop() 接收)
 ### DeviceManager
 - **单一职责**：设备管理与 MQTT 连接编排
 - **不依赖 UI**：通过事件通知上层
-- **线程安全**：内部使用 ConcurrentQueue 桥接 MQTT 线程与 Unity 主线程
+- **线程安全**：通过 `SensorEventBus` 的 `ConcurrentQueue` 桥接 MQTT 线程与 Unity 主线程
 - **自动重连**：断线时自动重连
+
+### SensorEventBus
+- 持有 `ConcurrentQueue<SensorMessage>`，在 Unity 主线程出队并广播
+- 对外提供主线程安全的 `OnSensorDataUpdated` 事件
+- 将 MQTT 后台线程与 Unity API 隔离
 
 ### SensorMessage
 - 使用 `Dictionary<string, float>` 替代固定字段
@@ -165,25 +168,26 @@ ESP32 (client.loop() 接收)
 │  JsonSensorParser.Parse()             │
 │        │                              │
 │        ▼                              │
-│  _messageQueue.Enqueue()  ← lock-free│
+│  SensorEventBus.Enqueue()             │
 └──────────────┬────────────────────────┘
                │ ConcurrentQueue
                ▼
 ┌───────────────────────────────────────┐
 │         Unity Main Thread              │
 │                                       │
-│  DeviceManager.Update()               │
+│  SensorEventBus.Update()               │
 │        │                              │
 │        ▼                              │
 │  _messageQueue.TryDequeue()           │
 │        │                              │
 │        ▼                              │
-│  UpdateDeviceData()                   │
-│        │                              │
-│        ▼                              │
 │  OnSensorDataUpdated?.Invoke()        │
 │        │                              │
-│        ▼                              │
+│        ├──► DeviceManager.OnSensorDataForTracking()
+│        │
+│        └──► DeviceManager.OnSensorDataUpdated?.Invoke()
+│                     │
+│                     ▼
 │  Business Layer / UI                  │
 │  (Safe to use Unity API here)         │
 └───────────────────────────────────────┘
@@ -195,7 +199,7 @@ ESP32 (client.loop() 接收)
 
 ### 新增传感器类型
 
-无需修改任何框架代码。ESP32 固件在 JSON 的 `sensor` 对象中添加新字段即可：
+无需修改任何框架代码。设备端在 JSON 的 `sensor` 对象中添加新字段即可：
 
 ```json
 {
@@ -220,24 +224,30 @@ float pm25 = msg.GetValue("pm25");
 ### 替换 MQTT 实现
 
 1. 实现 `IMqttClient` 接口
-2. 修改 `DeviceManager.TryConnectInternal()` 中 `new M2MqttAdapter()` 为你的实现
+2. 在 `Connect()` 前设置 `DeviceManager.MqttFactory`：
 
-### 添加新的 Demo/Application
+```csharp
+DeviceManager.MqttFactory = () => new MyMqttAdapter();
+```
 
-1. 在 `Examples/` 下创建新目录
-2. 引用 `UnitySenseFramework.Runtime` 程序集
-3. 订阅 `DeviceManager.Instance.OnSensorDataUpdated`
+### 添加新的示例/Application
+
+1. 如需随包提供示例，在 `Samples~/` 下创建 UPM 示例目录
+2. 在 `package.json` 的 `samples` 中注册该目录
+3. 引用 `UnitySenseFramework.Runtime` 程序集
+4. 订阅 `DeviceManager.Instance.OnSensorDataUpdated`
 
 ---
 
 ## 文件清单
 
 ```
-UnitySenseFramework/
+com.unitysense.framework/
 ├── README.md                         框架说明
-├── API_REFERENCE.md                  API 文档
-├── ARCHITECTURE.md                   架构文档（本文档）
 ├── package.json                      Package 清单
+├── Documentation/
+│   ├── API_REFERENCE.md              API 文档
+│   └── ARCHITECTURE.md               架构文档（本文档）
 ├── Runtime/
 │   ├── UnitySenseFramework.Runtime.asmdef
 │   ├── Communication/
@@ -253,6 +263,7 @@ UnitySenseFramework/
 │   │   └── SensorEventBus.cs        事件总线
 │   └── Parser/
 │       └── JsonSensorParser.cs       JSON 解析器
-└── Plugins/
-    └── M2Mqtt/                       M2Mqtt 第三方库
+└── M2Mqtt/
+    ├── M2Mqtt.asmdef                M2Mqtt 程序集
+    └── M2Mqtt_LICENSE.txt           M2Mqtt 第三方库许可
 ```
