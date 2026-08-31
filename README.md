@@ -188,6 +188,15 @@ com.unitysense.framework/
 - [ ] 传感器数据录制与回放
 - [ ] Unity Editor 设备模拟器
 
+## 相关项目
+
+| 项目 | 说明 |
+|------|------|
+| **[UnitySense-ESP32](https://github.com/Han-coid/UnitySense-ESP32)** | ESP32 端：ESP32 → MQTT → Unity |
+| **[UnitySense-Bridge](https://github.com/Han-coid/UnitySense-Bridge)** | Unity 通用物联网交互框架 |
+| **[UnitySense-SmartCare](https://github.com/Han-coid/UnitySense-SmartCare)** | 养老院智慧环境管理 Demo |
+
+
 ---
 
 ## 许可
